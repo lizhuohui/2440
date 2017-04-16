@@ -9,8 +9,10 @@ TEMPLATE = app
 
 SOURCES += \
     main.cpp \
-    UsbSerial.cpp
+    UsbSerial.cpp \
+    log.cpp
 
 HEADERS += \
-    UsbSerial.h
+    UsbSerial.h \
+    log.h
 

@@ -1,4 +1,5 @@
 #include "UsbSerial.h"
+#include "log.h"
 
 void SetArg(int *argc, char **argv[])
 {
@@ -22,7 +23,7 @@ void PrintArg(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
-#if 1
+#if 0
     if (argc == 1)
     {
         execl("/usr/bin/gnome-terminal", "gnome-terminal", "-e", "sudo ./usbserial null", NULL);
@@ -35,10 +36,7 @@ int main(int argc, char *argv[])
 //    PrintArg(argc, argv);
 
     CUsbSerial usbserial;
+    usbserial.ScanInput();
 
-    while(1)
-    {
-        usbserial.ScanInput();
-    }
 }
 

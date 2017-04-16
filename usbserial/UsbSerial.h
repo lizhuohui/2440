@@ -21,8 +21,14 @@
 #include <errno.h>
 #include <pthread.h>
 #include <sys/ioctl.h>
-#include <string.h>
-#include<sys/file.h> // 定义函数  int flock(int fd,int operation);
+#include <string>
+#include <cstring>
+#include <sys/file.h> // 定义函数  int flock(int fd,int operation);
+#include <vector>
+#include <fstream>
+#include <queue>
+
+using namespace std;
 
 typedef struct tty_info_t // 串口设备信息结构
 {
@@ -35,6 +41,10 @@ typedef struct tty_info_t // 串口设备信息结构
 
 class CUsbSerial
 {
+
+    vector<string> m_vCommadBuf;
+
+
 public:
     TTY_INFO *ptty;
 
@@ -50,6 +60,7 @@ public:
     int unlockTTY(TTY_INFO *ptty);
     TTY_INFO * TTY_Init(void);
     TTY_INFO *UsbSerialInit(void);
+    void SendTty(string str);
     void ScanInput(void);
 };
 

@@ -1,6 +1,12 @@
 #include "UsbSerial.h"
+#include "log.h"
+#include <queue>
 
 CUsbSerial *g_UsbSerial = NULL;
+
+string m_strScanBuf;
+unsigned long m_ReceiveTick;
+queue<char> g_qCmandBuf;
 
 CUsbSerial::CUsbSerial(void)
 {
@@ -271,6 +277,54 @@ void *thread(void *ptty)
     return NULL;
 }
 
+// bollow function is direct to read one key form keyboard without enter key.
+#include <unistd.h>
+#include <termios.h>
+char getch()
+{
+    char buf = 0;
+    struct termios old = {0};
+    if (tcgetattr(0, &old) < 0)
+    perror("tcsetattr()");
+    old.c_lflag &= ~ICANON;
+    old.c_lflag &= ~ECHO;
+    old.c_cc[VMIN] = 1;
+    old.c_cc[VTIME] = 0;
+    if (tcsetattr(0, TCSANOW, &old) < 0)
+    perror("tcsetattr ICANON");
+    if (read(0, &buf, 1) < 0)
+    perror ("read()");
+    old.c_lflag |= ICANON;
+    old.c_lflag |= ECHO;
+    if (tcsetattr(0, TCSADRAIN, &old) < 0)
+    perror ("tcsetattr ~ICANON");
+    return (buf);
+}
+
+#include <time.h>
+unsigned long GetTickCount(void)// 返回自系统开机以来的毫秒数（tick）
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+}
+
+void *thread_displsy(void *ptty)
+{
+    while (1)
+    {
+        if (g_UsbSerial != NULL)
+        {
+            char a = getch();
+           // m_strScanBuf += a;
+            g_qCmandBuf.push(a);
+            //m_ReceiveTick = GetTickCount();
+        }
+    }
+    return NULL;
+}
+
+
 TTY_INFO *CUsbSerial::UsbSerialInit(void)
 {
     setvbuf(stdout,NULL,_IONBF,0); //直接将缓冲区禁止了. 它就直接输出了
@@ -280,16 +334,113 @@ TTY_INFO *CUsbSerial::UsbSerialInit(void)
     pthread_t pth;
     pthread_create(&pth, NULL, thread, ptty);
 
+    pthread_t pth_display;
+    pthread_create(&pth, NULL, thread_displsy, ptty);
+
     printf("Please use ctrl+c to close, or will be wrong when we open it in second time.\n");
     return ptty;
 }
 
+void CUsbSerial::SendTty(string str)
+{
+    sendnTTY(ptty, (char*)str.c_str(), str.size());
+}
+
+int InUpArrow(char ch)
+{
+    static int cnt = 0;
+    const char *UpArrow = "\x1B\x5B\x41";
+    if (cnt == 0 && ch == UpArrow[0])
+    {
+        cnt++;
+        return 0;
+    }
+    else if (cnt == 1 && ch == UpArrow[1])
+    {
+        cnt++;
+        return 0;
+    }
+    else if (cnt == 2 && ch == UpArrow[2])
+    {
+        cnt = 0;
+        return 1;
+    }
+    else
+    {
+        cnt = 0;
+        return -1;
+    }
+    return -1;
+}
+
 void CUsbSerial::ScanInput(void)
 {
-    char a = 0;
-    scanf("%c",&a);
-    sendnTTY(ptty,&a,1);
+    vector<string> vBuf;
+    string strBuf;
+    int BackIndex = 0;
+    while (1)
+    {
+        for (int i=0; g_qCmandBuf.empty()==false; i++)
+        {
+            char ch = g_qCmandBuf.front();
+            g_qCmandBuf.pop();
+            int res = InUpArrow(ch);
+            if (res >= 0)
+            {
+                if (res > 0)
+                {
+                    BackIndex++;
+                    if (BackIndex > 0 && BackIndex < vBuf.size())
+                    {
+                        SendTty("\x15");
+                        string strSend = vBuf[vBuf.size() - BackIndex];
+                        SendTty(strSend);
+                        vBuf.push_back(strSend);
+                        BackIndex++;
+                    }
+                    else
+                    {
+                        printf("Out of range");
+                    }
+                }
+            }
+            else
+            {
+                BackIndex = 0;
+                sendnTTY(ptty, &ch, 1);
+                if (ch == '\n')
+                {
+                    if (strBuf.size() > 0)
+                        vBuf.push_back(strBuf);
+                    strBuf.clear();
+                }
+                else
+                {
+                    strBuf += ch;
+                }
+            }
+        }
+    }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
