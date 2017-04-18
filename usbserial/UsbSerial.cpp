@@ -346,10 +346,11 @@ void CUsbSerial::SendTty(string str)
     sendnTTY(ptty, (char*)str.c_str(), str.size());
 }
 
-int InUpArrow(char ch)
+int InUpDownArrow(char ch)
 {
     static int cnt = 0;
     const char *UpArrow = "\x1B\x5B\x41";
+    const char *DownArrow = "\x1B\x5B\x42";
     if (cnt == 0 && ch == UpArrow[0])
     {
         cnt++;
@@ -365,6 +366,11 @@ int InUpArrow(char ch)
         cnt = 0;
         return 1;
     }
+//    else if (cnt == 2 && ch == DownArrow[2])
+//    {
+//        cnt = 0;
+//        return 2;
+//    }
     else
     {
         cnt = 0;
@@ -384,13 +390,21 @@ void CUsbSerial::ScanInput(void)
         {
             char ch = g_qCmandBuf.front();
             g_qCmandBuf.pop();
-            int res = InUpArrow(ch);
-            if (res >= 0)
+            int res = InUpDownArrow(ch);
+            if (0)//(res >= 0)
             {
                 if (res > 0)
                 {
                     BackIndex++;
-                    if (BackIndex > 0 && BackIndex < vBuf.size())
+//                    if (res == 1)
+//                    {
+//                        if (BackIndex < vBuf.size() - 1)BackIndex++;
+//                    }
+//                    else
+//                    {
+//                        if (BackIndex > 2)BackIndex--;
+//                    }
+                    if (BackIndex > 1 && BackIndex < vBuf.size())
                     {
                         SendTty("\x15");
                         string strSend = vBuf[vBuf.size() - BackIndex];
@@ -408,16 +422,16 @@ void CUsbSerial::ScanInput(void)
             {
                 BackIndex = 0;
                 sendnTTY(ptty, &ch, 1);
-                if (ch == '\n')
-                {
-                    if (strBuf.size() > 0)
-                        vBuf.push_back(strBuf);
-                    strBuf.clear();
-                }
-                else
-                {
-                    strBuf += ch;
-                }
+//                if (ch == '\n')
+//                {
+//                    if (strBuf.size() > 0 && strBuf != vBuf[vBuf.size()-1])
+//                        vBuf.push_back(strBuf);
+//                    strBuf.clear();
+//                }
+//                else
+//                {
+//                    strBuf += ch;
+//                }
             }
         }
     }
